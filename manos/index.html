@@ -36,7 +36,7 @@
 <script type="module">
 import * as THREE from "three";
 import { HandLandmarker, FilesetResolver } from "tasks-vision";
-import { addBrandLights, makeComposer, buildLogo, setCameraBackground } from "../shared/premium.js";
+import { addBrandLights, makeBloom, enableBloom, buildLogo, setCameraBackground } from "../shared/premium.js";
 
 window.__MANOS = { ready: false, handLandmarkerLoaded: false, error: null };
 const MIRROR = false; // poner true si se graba con camara frontal en modo espejo
@@ -63,12 +63,13 @@ async function main() {
     const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.01, 100);
     camera.position.set(0, 0, 0); // camara en el origen mirando -z
     addBrandLights(scene);
-    // threshold alto: el bloom solo realza el logo, no lava la camara de fondo
-    const { composer } = makeComposer(renderer, scene, camera, { strength: 1.2, radius: 0.6, threshold: 0.62 });
+    // bloom SELECTIVO: solo brilla el logo, nunca la camara
+    const { render: renderBloom } = makeBloom(renderer, scene, camera, { strength: 1.1, radius: 0.6, threshold: 0.0 });
     let cover = null; // fondo = feed de la camara (se asigna al arrancar)
 
     const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
     pivot.visible = false; scene.add(pivot);
+    enableBloom(pivot); // solo el logo brilla
 
     await loadHands();
     window.__MANOS.ready = true;
@@ -109,7 +110,7 @@ async function main() {
       }
       if (pivot.visible) pivot.rotation.y += 0.02;
       if (cover) cover(window.innerWidth, window.innerHeight);
-      composer.render();
+      renderBloom();
       requestAnimationFrame(frame);
     }
 

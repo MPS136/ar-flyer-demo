@@ -4,10 +4,18 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 export const BRAND = { blue: "#235a97", dark: "#1b3f6b", gold: "#efa320" };
+
+// Capa de bloom selectivo. Solo los objetos con esta capa habilitada brillan;
+// el fondo (camara) NUNCA se ve afectado, evitando que el glow lave la imagen.
+export const BLOOM_LAYER = 1;
+const _bloomLayers = new THREE.Layers();
+_bloomLayers.set(BLOOM_LAYER);
+export function enableBloom(obj) { obj.traverse((o) => o.layers.enable(BLOOM_LAYER)); }
 
 export function addBrandLights(scene) {
   scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.0));
@@ -26,6 +34,48 @@ export function makeComposer(renderer, scene, camera, opts = {}) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   return { composer, bloom };
+}
+
+// Bloom SELECTIVO: el glow solo afecta a los objetos marcados con enableBloom()
+// (logo, particulas), nunca al fondo de camara. Dos pasadas: una que aisla y
+// difumina lo brillante (con el resto en negro y sin fondo) y otra que pinta la
+// escena normal y le SUMA ese glow. Devuelve render() para el loop.
+export function makeBloom(renderer, scene, camera, opts = {}) {
+  const { strength = 0.9, radius = 0.5, threshold = 0.0 } = opts;
+  const size = new THREE.Vector2(window.innerWidth, window.innerHeight);
+
+  const bloomComposer = new EffectComposer(renderer);
+  bloomComposer.renderToScreen = false;
+  bloomComposer.addPass(new RenderPass(scene, camera));
+  bloomComposer.addPass(new UnrealBloomPass(size, strength, radius, threshold));
+
+  const mixPass = new ShaderPass(new THREE.ShaderMaterial({
+    uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
+    vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv; void main(){ gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv); }",
+  }), "baseTexture");
+  mixPass.needsSwap = true;
+
+  const finalComposer = new EffectComposer(renderer);
+  finalComposer.addPass(new RenderPass(scene, camera));
+  finalComposer.addPass(mixPass);
+  finalComposer.addPass(new OutputPass());
+
+  const darkMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const store = {};
+  const darken = (o) => { if (o.isMesh && !_bloomLayers.test(o.layers)) { store[o.uuid] = o.material; o.material = darkMat; } };
+  const restore = (o) => { if (store[o.uuid]) { o.material = store[o.uuid]; delete store[o.uuid]; } };
+
+  function render() {
+    const bg = scene.background;
+    scene.background = null;          // el fondo de camara no debe brillar
+    scene.traverse(darken);          // el resto en negro durante la pasada de glow
+    bloomComposer.render();
+    scene.traverse(restore);
+    scene.background = bg;
+    finalComposer.render();          // escena normal (camara nitida) + glow sumado
+  }
+  return { render };
 }
 
 // Pone el feed de la camara como fondo de la escena. Necesario cuando se usa
