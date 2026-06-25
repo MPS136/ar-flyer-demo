@@ -53,7 +53,9 @@ async function buildLogo() {
 
   const group = new THREE.Group();
   for (const path of data.paths) {
-    const fill = (path.userData && path.userData.style && path.userData.style.fill || "#235a97").toLowerCase();
+    const rawFill = path.userData && path.userData.style && path.userData.style.fill;
+    if (!rawFill || rawFill.toLowerCase() === "none") continue;
+    const fill = rawFill.toLowerCase();
     const color = fill === GOLD ? GOLD : "#235a97";
     const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.35 });
     for (const shape of SVGLoader.createShapes(path)) {
