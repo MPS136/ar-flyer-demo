@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>iAcademia en tus manos</title>
+<link rel="icon" href="../assets/iacademia-isotipo.svg" type="image/svg+xml" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#0a0f1a; font-family: system-ui, sans-serif; }
+  #wrap { position:fixed; inset:0; }
+  #cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(1); }
+  #gl { position:absolute; inset:0; width:100%; height:100%; }
+  #start { position:absolute; left:50%; bottom:12%; transform:translateX(-50%); z-index:10;
+    padding:16px 30px; font-size:18px; font-weight:600; color:#fff; background:#235a97; border:none; border-radius:999px; box-shadow:0 6px 22px rgba(0,0,0,.4); }
+  #hint { position:absolute; left:50%; top:7%; transform:translateX(-50%); z-index:10; display:none; color:#cfe0f5; background:rgba(0,0,0,.5); padding:10px 18px; border-radius:999px; font-size:14px; }
+  .error { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; color:#fff; background:#0a0f1a; padding:28px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <video id="cam" autoplay muted playsinline></video>
+  <canvas id="gl"></canvas>
+</div>
+<button id="start">Comenzar</button>
+<div id="hint">Muestra la palma abierta</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { HandLandmarker, FilesetResolver } from "tasks-vision";
+import { addBrandLights, makeComposer, buildLogo } from "../shared/premium.js";
+
+window.__MANOS = { ready: false, handLandmarkerLoaded: false, error: null };
+const MIRROR = false; // poner true si se graba con camara frontal en modo espejo
+
+function showError(m){ const d=document.createElement("div"); d.className="error"; d.textContent=m; document.body.appendChild(d); }
+
+let handLandmarker = null;
+async function loadHands() {
+  const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm");
+  handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: "GPU" },
+    runningMode: "VIDEO", numHands: 1,
+  });
+  window.__MANOS.handLandmarkerLoaded = true;
+}
+
+async function main() {
+  try {
+    const canvas = document.getElementById("gl");
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.01, 100);
+    camera.position.set(0, 0, 0); // camara en el origen mirando -z
+    addBrandLights(scene);
+    const { composer } = makeComposer(renderer, scene, camera, { strength: 1.2, radius: 0.6 });
+
+    const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
+    pivot.visible = false; scene.add(pivot);
+
+    await loadHands();
+    window.__MANOS.ready = true;
+
+    const video = document.getElementById("cam");
+    const hint = document.getElementById("hint");
+
+    // landmarks: 0 muneca, 9 MCP medio, puntas 4/8/12/16/20, MCP 5/9/13/17
+    function palmInfo(lm) {
+      const idx = [0, 5, 9, 13, 17];
+      let cx=0, cy=0; for (const i of idx){ cx+=lm[i].x; cy+=lm[i].y; } cx/=idx.length; cy/=idx.length;
+      const span = Math.hypot(lm[0].x-lm[9].x, lm[0].y-lm[9].y);
+      // apertura: media de distancias yema-muneca normalizada por span
+      const tips=[8,12,16,20]; let open=0; for(const i of tips){ open+=Math.hypot(lm[i].x-lm[0].x, lm[i].y-lm[0].y); }
+      open=(open/tips.length)/(span||1);
+      return { cx, cy, span, open };
+    }
+
+    function place(lm) {
+      const { cx, cy, span, open } = palmInfo(lm);
+      const nx = (MIRROR ? 1 - cx : cx) * 2 - 1;
+      const ny = -(cy * 2 - 1);
+      const v = new THREE.Vector3(nx, ny, 0.5).unproject(camera);
+      const dir = v.sub(camera.position).normalize();
+      const dist = 2.2;
+      pivot.position.copy(camera.position).add(dir.multiplyScalar(dist));
+      const baseScale = THREE.MathUtils.clamp(span * 6.0, 0.4, 2.2);
+      const openK = THREE.MathUtils.clamp((open - 1.2) / 0.9, 0.15, 1.0); // puno ~1.2, abierta ~2.1
+      pivot.scale.setScalar(baseScale * openK);
+      pivot.visible = true;
+    }
+
+    function frame() {
+      if (video.readyState >= 2 && handLandmarker) {
+        const res = handLandmarker.detectForVideo(video, performance.now());
+        if (res.landmarks && res.landmarks.length) { place(res.landmarks[0]); hint.style.display="none"; }
+        else { pivot.visible = false; hint.style.display="block"; }
+      }
+      if (pivot.visible) pivot.rotation.y += 0.02;
+      composer.render();
+      requestAnimationFrame(frame);
+    }
+
+    document.getElementById("start").addEventListener("click", async () => {
+      try {
+        document.getElementById("start").style.display = "none";
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        hint.style.display = "block";
+        requestAnimationFrame(frame);
+      } catch (e) { showError("No se pudo acceder a la camara. Revisa permisos y HTTPS."); }
+    });
+  } catch (e) {
+    window.__MANOS.error = String(e);
+    showError("Error al iniciar: " + (e && e.message ? e.message : e));
+  }
+}
+main();
+</script>
+</body>
+</html>
