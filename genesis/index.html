@@ -54,7 +54,7 @@ async function main() {
     const anchor = mindarThree.addAnchor(0);
     const { pivot, surfacePoints } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 0.7 });
     const fitScale = pivot.scale.x; // escala de ajuste interna del logo; respirar RELATIVO a esto
-    const field = new ParticleField(surfacePoints(PARTICLE_COUNT), { spread: 0.9, size: 0.02 });
+    const field = new ParticleField(surfacePoints(PARTICLE_COUNT), { spread: 0.9, size: 0.028, blue: "#5fd0ff", gold: "#ffcf3a", goldRatio: 0.28 });
     pivot.position.set(0, 0, 0.2);
     pivot.visible = false;             // el solido aparece al final de la genesis
     field.points.position.set(0, 0, 0.2);

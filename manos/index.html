@@ -77,8 +77,11 @@ async function main() {
 
     // landmarks: 0 muneca, 9 MCP medio, puntas 4/8/12/16/20, MCP 5/9/13/17
     function palmInfo(lm) {
-      const idx = [0, 5, 9, 13, 17];
-      let cx=0, cy=0; for (const i of idx){ cx+=lm[i].x; cy+=lm[i].y; } cx/=idx.length; cy/=idx.length;
+      const wx = lm[0].x, wy = lm[0].y;                 // muneca
+      let mx = 0, my = 0; for (const i of [5, 9, 13, 17]) { mx += lm[i].x; my += lm[i].y; } mx /= 4; my /= 4; // nudillos
+      // centro = nudillos empujado un poco hacia los dedos: cae en la PALMA, no en la muneca/antebrazo
+      const cx = mx + (mx - wx) * 0.12;
+      const cy = my + (my - wy) * 0.12;
       const span = Math.hypot(lm[0].x-lm[9].x, lm[0].y-lm[9].y);
       // apertura: media de distancias yema-muneca normalizada por span
       const tips=[8,12,16,20]; let open=0; for(const i of tips){ open+=Math.hypot(lm[i].x-lm[0].x, lm[i].y-lm[0].y); }
@@ -94,7 +97,7 @@ async function main() {
       const dir = v.sub(camera.position).normalize();
       const dist = 2.2;
       pivot.position.copy(camera.position).add(dir.multiplyScalar(dist));
-      const baseScale = THREE.MathUtils.clamp(span * 6.0, 0.4, 2.2);
+      const baseScale = THREE.MathUtils.clamp(span * 4.0, 0.3, 1.5);
       const openK = THREE.MathUtils.clamp((open - 1.2) / 0.9, 0.15, 1.0); // puno ~1.2, abierta ~2.1
       pivot.scale.setScalar(fitScale * baseScale * openK); // relativo al ajuste (si no, logo gigante e invisible)
       pivot.visible = true;

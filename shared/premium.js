@@ -154,14 +154,14 @@ export async function buildLogo(svgUrl, opts = {}) {
 
 export class ParticleField {
   constructor(targetPositions, opts = {}) {
-    const { spread = 1.6, size = 0.014, goldRatio = 0.18 } = opts;
+    const { spread = 1.6, size = 0.014, goldRatio = 0.18, blue: blueHex = BRAND.blue, gold: goldHex = BRAND.gold } = opts;
     this.count = targetPositions.length / 3;
     this.target = targetPositions;
     this.cloud = new Float32Array(this.count * 3);
     this.current = new Float32Array(this.count * 3);
     this.delay = new Float32Array(this.count);
     const colors = new Float32Array(this.count * 3);
-    const blue = new THREE.Color(BRAND.blue), gold = new THREE.Color(BRAND.gold);
+    const blue = new THREE.Color(blueHex), gold = new THREE.Color(goldHex);
     for (let i = 0; i < this.count; i++) {
       const r = spread * (0.45 + Math.random() * 0.55);
       const a = Math.random() * Math.PI * 2;
