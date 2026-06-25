@@ -59,12 +59,15 @@ export async function buildLogo(svgUrl, opts = {}) {
   pivot.scale.setScalar(fit);
   pivot.updateMatrixWorld(true);
 
-  // Geometria fusionada en el espacio local del pivot (para muestreo alineado).
+  // Sampled points are in the PARENT space of pivot (include its fit scale).
+  // IMPORTANT: add the Points as a SIBLING of pivot (same parent), not as a child,
+  // so that particles and logo align correctly.
   const worldGeos = group.children.map((m) => m.geometry.clone().applyMatrix4(m.matrixWorld));
   const merged = mergeGeometries(worldGeos, false);
   const sampler = new MeshSurfaceSampler(new THREE.Mesh(merged)).build();
 
   function surfacePoints(count) {
+    // Returns particle positions sampled from logo surface, in pivot's parent space.
     const arr = new Float32Array(count * 3);
     const tmp = new THREE.Vector3();
     for (let i = 0; i < count; i++) {
