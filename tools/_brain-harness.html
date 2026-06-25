@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8" /><title>brain harness</title>
+<link rel="icon" href="data:," /><style>html,body{margin:0;height:100%;background:#0a0f1a;overflow:hidden}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script></head><body>
+<script type="module">
+import * as THREE from "three";
+import { addBrandLights, makeComposer, buildLogo, buildBrain, ParticleField } from "../shared/premium.js";
+window.__BRAIN = { ready:false, particles:0, synapsePairs:0, morphMoved:false, error:null };
+try {
+  const renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+  renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.01, 100);
+  camera.position.set(0,0,3);
+  addBrandLights(scene);
+  const { composer } = makeComposer(renderer, scene, camera);
+  const COUNT = 4000;
+  const { surfacePoints } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.2 });
+  const brain = await buildBrain("../assets/source/brain.glb", { scaleToFit: 1.2 });
+  const logoPts = surfacePoints(COUNT);
+  const brainPts = brain.brainPoints(COUNT);
+  const syn = brain.synapses();
+  const field = new ParticleField(logoPts, { targetB: brainPts });
+  scene.add(field.points);
+  // morph 0 -> 1 debe mover las particulas
+  const before = field.points.geometry.attributes.position.array[1];
+  field.morph(1);
+  const after = field.points.geometry.attributes.position.array[1];
+  window.__BRAIN.morphMoved = Math.abs(after - before) > 1e-6;
+  field.morph(0);
+  window.__BRAIN.particles = field.count;
+  window.__BRAIN.synapsePairs = syn.pairs.length;
+  window.__BRAIN.ready = true;
+  let t=0; renderer.setAnimationLoop(()=>{ t+=0.016; field.morph((Math.sin(t)+1)/2); composer.render(); });
+} catch (e) { window.__BRAIN.error = String(e); }
+</script></body></html>

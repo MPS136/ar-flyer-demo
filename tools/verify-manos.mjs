@@ -22,5 +22,18 @@ try {
   if (!s.handLandmarkerLoaded) throw new Error("HandLandmarker no cargo tras Comenzar");
   const crit = errors.filter((e) => !/deprecat|GroupMarker|GL_/i.test(e));
   if (crit.length) throw new Error("errores: " + crit.join(" | "));
+  // cerebro + morph
+  if (!s.brainLoaded || s.particles < 1 || s.synapsePairs < 1) throw new Error("cerebro/particulas/sinapsis no construidos");
+  // forzar morph 0 -> 1 -> 0 y comprobar que no peta
+  await page.evaluate(() => window.__MANOS.testMorph(1));
+  await page.waitForTimeout(400);
+  const m1 = await page.evaluate(() => window.__MANOS.morph);
+  await page.evaluate(() => window.__MANOS.testMorph(0));
+  await page.waitForTimeout(400);
+  const m0 = await page.evaluate(() => window.__MANOS.morph);
+  await page.evaluate(() => window.__MANOS.testMorph(null));
+  if (!(m1 > 0.8) || !(m0 < 0.2)) throw new Error("morph forzado no respondio: m1=" + m1 + " m0=" + m0);
+  const crit2 = errors.filter((e) => !/deprecat|GroupMarker|GL_/i.test(e));
+  if (crit2.length) throw new Error("errores tras morph: " + crit2.join(" | "));
   console.log("VERIFY MANOS OK");
 } finally { await browser.close(); srv.kill(); }

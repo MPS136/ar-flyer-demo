@@ -7,6 +7,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { MeshSurfaceSampler } from "three/addons/math/MeshSurfaceSampler.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export const BRAND = { blue: "#235a97", dark: "#1b3f6b", gold: "#efa320" };
 
@@ -174,11 +175,58 @@ export async function buildLogo(svgUrl, opts = {}) {
   return { pivot, surfacePoints };
 }
 
+// Muestrea un GLB de cerebro: devuelve puntos de superficie (misma convencion de
+// tamano que surfacePoints) y pares de sinapsis (vecinos cercanos) para dibujar lineas.
+export async function buildBrain(glbUrl, opts = {}) {
+  const { scaleToFit = 1.0, nodeCount = 280, neighbors = 3 } = opts;
+  const gltf = await new GLTFLoader().loadAsync(glbUrl);
+  gltf.scene.updateMatrixWorld(true);
+  const geos = [];
+  gltf.scene.traverse((o) => {
+    if (o.isMesh) {
+      let g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+      if (g.index) g = g.toNonIndexed();
+      g.deleteAttribute("uv"); g.deleteAttribute("normal"); g.deleteAttribute("color");
+      geos.push(g);
+    }
+  });
+  const merged = mergeGeometries(geos, false);
+  if (!merged) throw new Error("buildBrain: no mesh geometries found in " + glbUrl);
+  merged.computeBoundingBox();
+  const bb = merged.boundingBox;
+  const center = bb.getCenter(new THREE.Vector3());
+  const size = bb.getSize(new THREE.Vector3());
+  const fit = scaleToFit / Math.max(size.x, size.y, size.z);
+  merged.translate(-center.x, -center.y, -center.z);
+  merged.scale(fit, fit, fit);
+  const sampler = new MeshSurfaceSampler(new THREE.Mesh(merged)).build();
+  function brainPoints(count) {
+    const arr = new Float32Array(count * 3);
+    const tmp = new THREE.Vector3();
+    for (let i = 0; i < count; i++) { sampler.sample(tmp); arr[i*3]=tmp.x; arr[i*3+1]=tmp.y; arr[i*3+2]=tmp.z; }
+    return arr;
+  }
+  function synapses({ nodes = nodeCount, k = neighbors } = {}) {
+    const pts = []; const tmp = new THREE.Vector3();
+    for (let i = 0; i < nodes; i++) { sampler.sample(tmp); pts.push(tmp.clone()); }
+    const pairs = [];
+    for (let i = 0; i < nodes; i++) {
+      const d = [];
+      for (let j = 0; j < nodes; j++) if (j !== i) d.push([j, pts[i].distanceToSquared(pts[j])]);
+      d.sort((a, b) => a[1] - b[1]);
+      for (let n = 0; n < k && n < d.length; n++) { const j = d[n][0]; if (i < j) pairs.push([i, j]); }
+    }
+    return { nodes: pts, pairs };
+  }
+  return { brainPoints, synapses };
+}
+
 export class ParticleField {
   constructor(targetPositions, opts = {}) {
-    const { spread = 1.6, size = 0.014, goldRatio = 0.18, blue: blueHex = BRAND.blue, gold: goldHex = BRAND.gold } = opts;
+    const { spread = 1.6, size = 0.014, goldRatio = 0.18, blue: blueHex = BRAND.blue, gold: goldHex = BRAND.gold, targetB = null } = opts;
     this.count = targetPositions.length / 3;
     this.target = targetPositions;
+    this.targetB = targetB; // segunda nube objetivo (cerebro); null => sin morph
     this.cloud = new Float32Array(this.count * 3);
     this.current = new Float32Array(this.count * 3);
     this.delay = new Float32Array(this.count);
@@ -221,6 +269,15 @@ export class ParticleField {
         const idx = i * 3 + k;
         this.current[idx] = this.cloud[idx] + (this.target[idx] - this.cloud[idx]) * e;
       }
+    }
+    this.points.geometry.attributes.position.needsUpdate = true;
+  }
+  // p 0..1: interpola de la nube objetivo A (logo) a la B (cerebro)
+  morph(p) {
+    if (!this.targetB) return;
+    const e = this._ease(Math.min(1, Math.max(0, p)));
+    for (let i = 0; i < this.count * 3; i++) {
+      this.current[i] = this.target[i] + (this.targetB[i] - this.target[i]) * e;
     }
     this.points.geometry.attributes.position.needsUpdate = true;
   }
