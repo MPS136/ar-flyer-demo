@@ -35,8 +35,9 @@
 </script>
 <script type="module">
 import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { HandLandmarker, FilesetResolver } from "tasks-vision";
-import { addBrandLights, buildLogo, setCameraBackground } from "../shared/premium.js";
+import { addBrandLights, buildLogo, setCameraBackground, makeBloom, enableBloom } from "../shared/premium.js";
 
 window.__MANOS = { ready: false, handLandmarkerLoaded: false, error: null };
 const MIRROR = false; // poner true si se graba con camara frontal en modo espejo
@@ -59,14 +60,24 @@ async function main() {
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Tono cinematografico: ACES + exposicion -> contraste y brillos controlados (no fosforito).
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.01, 100);
     camera.position.set(0, 0, 0); // camara en el origen mirando -z
-    addBrandLights(scene);
+    // Entorno HDRI de estudio (PMREM): IMPRESCINDIBLE para que el metal refleje.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    addBrandLights(scene, { metal: true });
     // Render directo (lienzo transparente sobre el video de la camara): ligero para movil.
-    const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
+    const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0, finish: "metal" });
     const fitScale = pivot.scale.x; // escala de ajuste interna (no sobreescribir; escalar relativo)
     pivot.visible = false; scene.add(pivot);
+    enableBloom(pivot); // glow selectivo solo sobre el logo (no sobre la camara)
+    const bloom = makeBloom(renderer, scene, camera, { strength: 0.7, radius: 0.6, threshold: 0 });
+    const clock = new THREE.Clock();
+    let reveal = 0; // 0..1: entrada animada del logo al detectar la mano
     let cover = null; // fondo = feed de camara (in-render, robusto); se asigna al arrancar
 
     const video = document.getElementById("cam");
@@ -104,14 +115,25 @@ async function main() {
     }
 
     function frame() {
+      const dt = clock.getDelta();
+      const t = clock.elapsedTime;
+      let detected = false;
       if (video.readyState >= 2 && handLandmarker) {
         const res = handLandmarker.detectForVideo(video, performance.now());
-        if (res.landmarks && res.landmarks.length) { place(res.landmarks[0]); hint.style.display="none"; }
+        if (res.landmarks && res.landmarks.length) { place(res.landmarks[0]); detected = true; hint.style.display="none"; }
         else { pivot.visible = false; hint.style.display="block"; }
       }
-      if (pivot.visible) pivot.rotation.y += 0.02;
+      // Entrada animada: el logo "crece" al aparecer la mano (ease-out cubico) y se
+      // reinicia al perderla, para que cada reaparicion tenga vida.
+      reveal = detected ? Math.min(1, reveal + dt * 2.5) : 0;
+      if (pivot.visible) {
+        pivot.rotation.y += dt * 0.7;                 // giro mas lento y elegante
+        pivot.position.y += Math.sin(t * 1.6) * 0.02; // flotacion suave sobre la palma
+        const e = 1 - Math.pow(1 - reveal, 3);        // ease-out de la entrada
+        pivot.scale.multiplyScalar(e);
+      }
       if (cover) cover(window.innerWidth, window.innerHeight);
-      renderer.render(scene, camera);
+      bloom.render();
       requestAnimationFrame(frame);
     }
 
