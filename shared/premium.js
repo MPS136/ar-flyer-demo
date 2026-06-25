@@ -17,11 +17,21 @@ const _bloomLayers = new THREE.Layers();
 _bloomLayers.set(BLOOM_LAYER);
 export function enableBloom(obj) { obj.traverse((o) => o.layers.enable(BLOOM_LAYER)); }
 
-export function addBrandLights(scene) {
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 1.0));
-  const d = new THREE.DirectionalLight(0xffffff, 1.2);
-  d.position.set(1, 1, 2);
-  scene.add(d);
+// Por defecto: el esquema original (hemisferica + 1 direccional) que usan los
+// modulos ya verificados (p.ej. GENESIS), sin tocarlos. Con { metal:true } se
+// reduce la hemisferica para que el entorno (scene.environment) mande en los
+// reflejos y se anade una luz RIM trasera que dibuja el canto -> acabado joya.
+export function addBrandLights(scene, opts = {}) {
+  const { metal = false } = opts;
+  scene.add(new THREE.HemisphereLight(0xffffff, metal ? 0x1b2a44 : 0x223344, metal ? 0.5 : 1.0));
+  const key = new THREE.DirectionalLight(0xffffff, metal ? 1.6 : 1.2);
+  key.position.set(1, metal ? 1.5 : 1, 2);
+  scene.add(key);
+  if (metal) {
+    const rim = new THREE.DirectionalLight(0xcfe0ff, 1.3);
+    rim.position.set(-1.5, 0.5, -1.2);
+    scene.add(rim);
+  }
 }
 
 export function makeComposer(renderer, scene, camera, opts = {}) {
@@ -98,7 +108,11 @@ export function setCameraBackground(scene, video) {
 }
 
 export async function buildLogo(svgUrl, opts = {}) {
-  const { depth = 18, scaleToFit = 1.0 } = opts;
+  // finish "plastic" (por defecto): material original que usan los modulos ya
+  // verificados (GENESIS). finish "metal": acabado joya, REQUIERE scene.environment
+  // en el modulo que lo use (sin entorno un metal se ve negro/plano).
+  const { depth = 18, scaleToFit = 1.0, finish = "plastic" } = opts;
+  const metal = finish === "metal";
   const text = await (await fetch(svgUrl)).text();
   const data = new SVGLoader().parse(text);
   const group = new THREE.Group();
@@ -107,12 +121,20 @@ export async function buildLogo(svgUrl, opts = {}) {
     if (!rawFill || rawFill.toLowerCase() === "none") continue;
     const fill = rawFill.toLowerCase();
     const color = fill === BRAND.gold.toLowerCase() ? BRAND.gold : BRAND.blue;
-    const mat = new THREE.MeshStandardMaterial({
+    // Metal pulido tipo "joya": metalness 1 (el color tinta el reflejo, look anodizado),
+    // roughness bajo = brillo nitido. emissive minimo: solo para que el bloom selectivo
+    // prenda un poco los cantos, sin lavar la forma.
+    const mat = new THREE.MeshStandardMaterial(metal ? {
+      color, metalness: 1.0, roughness: 0.22, envMapIntensity: 1.4,
+      emissive: new THREE.Color(color), emissiveIntensity: 0.12,
+    } : {
       color, emissive: new THREE.Color(color), emissiveIntensity: 0.7, metalness: 0.4, roughness: 0.35,
     });
     for (const shape of SVGLoader.createShapes(path)) {
       const geo = new THREE.ExtrudeGeometry(shape, {
-        depth, bevelEnabled: true, bevelThickness: 2.5, bevelSize: 2, bevelSegments: 3, curveSegments: 24,
+        depth, bevelEnabled: true,
+        bevelThickness: metal ? 4 : 2.5, bevelSize: metal ? 3.2 : 2, bevelSegments: metal ? 5 : 3,
+        curveSegments: 24,
       });
       group.add(new THREE.Mesh(geo, mat));
     }
