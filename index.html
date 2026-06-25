@@ -1,5 +1,128 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><title>iAcademia AR</title></head>
-<body><p>AR demo (placeholder)</p></body>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>iAcademia AR</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; font-family: system-ui, -apple-system, sans-serif; background:#1b3f6b; }
+  #ar { width:100vw; height:100vh; position:relative; }
+  #start { position:absolute; left:50%; bottom:12%; transform:translateX(-50%); z-index:10;
+    padding:16px 30px; font-size:18px; font-weight:600; color:#fff; background:#235a97;
+    border:none; border-radius:999px; box-shadow:0 6px 22px rgba(0,0,0,.35); cursor:pointer; }
+  #hint { position:absolute; left:50%; top:7%; transform:translateX(-50%); z-index:10; display:none;
+    color:#fff; background:rgba(0,0,0,.55); padding:10px 18px; border-radius:999px; font-size:15px; }
+  .error { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    color:#fff; background:#1b3f6b; padding:28px; text-align:center; font-size:16px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="ar"></div>
+<button id="start">Comenzar</button>
+<div id="hint">Apunta la camara al flyer</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { MindARThree } from "mindar-image-three";
+import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
+
+window.__AR = { ready: false, logoMeshes: 0, error: null };
+
+const GOLD = "#efa320";
+
+function showError(msg) {
+  const d = document.createElement("div");
+  d.className = "error";
+  d.textContent = msg;
+  document.body.appendChild(d);
+}
+
+async function buildLogo() {
+  const res = await fetch("./assets/iacademia-isotipo.svg");
+  const text = await res.text();
+  const data = new SVGLoader().parse(text);
+
+  const group = new THREE.Group();
+  for (const path of data.paths) {
+    const fill = (path.userData && path.userData.style && path.userData.style.fill || "#235a97").toLowerCase();
+    const color = fill === GOLD ? GOLD : "#235a97";
+    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.35 });
+    for (const shape of SVGLoader.createShapes(path)) {
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: 18, bevelEnabled: true, bevelThickness: 2.5, bevelSize: 2, bevelSegments: 3, curveSegments: 24,
+      });
+      group.add(new THREE.Mesh(geo, mat));
+    }
+  }
+
+  // SVG usa Y hacia abajo: invertir Y, centrar y escalar para que quepa sobre el marcador.
+  group.scale.y *= -1;
+  const box = new THREE.Box3().setFromObject(group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  group.children.forEach((m) => m.position.sub(center));
+  const fit = 0.6 / Math.max(size.x, size.y);
+
+  const pivot = new THREE.Group();
+  pivot.add(group);
+  pivot.scale.setScalar(fit);
+
+  window.__AR.logoMeshes = group.children.length;
+  return pivot;
+}
+
+async function main() {
+  try {
+    const mindarThree = new MindARThree({
+      container: document.querySelector("#ar"),
+      imageTargetSrc: "./assets/targets.mind",
+    });
+    const { renderer, scene, camera } = mindarThree;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x556688, 1.1));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+    dir.position.set(1, 1, 2);
+    scene.add(dir);
+
+    const anchor = mindarThree.addAnchor(0);
+    const logo = await buildLogo();
+    logo.position.set(0, 0, 0.15);
+    anchor.group.add(logo);
+
+    const hint = document.getElementById("hint");
+    anchor.onTargetFound = () => { hint.style.display = "none"; };
+    anchor.onTargetLost = () => { hint.style.display = "block"; };
+
+    window.__AR.ready = true;
+
+    document.getElementById("start").addEventListener("click", async () => {
+      try {
+        document.getElementById("start").style.display = "none";
+        hint.style.display = "block";
+        await mindarThree.start();
+        renderer.setAnimationLoop(() => {
+          logo.rotation.y += 0.02;
+          renderer.render(scene, camera);
+        });
+      } catch (e) {
+        showError("No se pudo acceder a la camara. Revisa los permisos y que estes en HTTPS.");
+      }
+    });
+  } catch (e) {
+    window.__AR.error = String(e);
+    showError("Error al iniciar AR: " + (e && e.message ? e.message : e));
+  }
+}
+main();
+</script>
+</body>
 </html>
