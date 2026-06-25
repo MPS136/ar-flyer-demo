@@ -191,6 +191,7 @@ export async function buildBrain(glbUrl, opts = {}) {
     }
   });
   const merged = mergeGeometries(geos, false);
+  if (!merged) throw new Error("buildBrain: no mesh geometries found in " + glbUrl);
   merged.computeBoundingBox();
   const bb = merged.boundingBox;
   const center = bb.getCenter(new THREE.Vector3());
