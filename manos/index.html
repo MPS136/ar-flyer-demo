@@ -77,7 +77,9 @@ async function main() {
     addBrandLights(scene, { metal: true });
     // Render directo (lienzo transparente sobre el video de la camara): ligero para movil.
     const { pivot, surfacePoints } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0, finish: "metal" });
-    const fitScale = pivot.scale.x; // escala de ajuste interna (capturada antes de meter en holder)
+    // pivot ya trae su escala de ajuste (fit) que convierte el SVG (~560u) en ~1u.
+    // Las particulas/surfacePoints tambien estan en espacio ~1u. Por eso el holder
+    // escala SOLO por baseScale (NO por fit otra vez), o todo el conjunto colapsaria.
 
     // Holder: posiciona y escala todo el conjunto (logo + particulas + sinapsis + pulsos).
     const COUNT = 4500;
@@ -154,12 +156,22 @@ async function main() {
       const dir = v.sub(camera.position).normalize();
       holder.position.copy(camera.position).add(dir.multiplyScalar(2.2));
       const baseScale = THREE.MathUtils.clamp(span * 4.0, 0.3, 1.5);
-      holder.scale.setScalar(fitScale * baseScale);
+      holder.scale.setScalar(baseScale);
       // objetivo de morph desde la apertura (smoothstep FIST->OPEN)
       const raw = THREE.MathUtils.clamp((open - FIST) / (OPEN - FIST), 0, 1);
       window._morphTarget = raw * raw * (3 - 2 * raw);
       holder.visible = true;
     }
+
+    // Hook de test: ejecuta place() con landmarks sinteticos y devuelve la escala
+    // resultante y el tamano del logo en el mundo, para detectar colapso de escala
+    // (el logo y las particulas deben medir ~baseScale, no ~fitScale).
+    window.__MANOS.testHand = (lm) => {
+      place(lm);
+      holder.updateMatrixWorld(true);
+      const s = new THREE.Box3().setFromObject(pivot).getSize(new THREE.Vector3());
+      return { holderScale: holder.scale.x, morphTarget: window._morphTarget, logoWorldSize: Math.max(s.x, s.y) };
+    };
 
     let lastMorph = 0;
 
