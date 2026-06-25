@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8" /><title>kit harness</title>
+<link rel="icon" href="data:," /><style>html,body{margin:0;height:100%;background:#0a0f1a;overflow:hidden}</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script></head><body>
+<script type="module">
+import * as THREE from "three";
+import { addBrandLights, makeComposer, buildLogo, ParticleField } from "../shared/premium.js";
+window.__KIT = { ready:false, meshes:0, particles:0, error:null };
+try {
+  const renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+  renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.01, 100);
+  camera.position.set(0,0,3);
+  addBrandLights(scene);
+  const { composer } = makeComposer(renderer, scene, camera);
+  const { pivot, surfacePoints } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.2 });
+  scene.add(pivot);
+  const field = new ParticleField(surfacePoints(4000));
+  scene.add(field.points);
+  window.__KIT.meshes = pivot.children[0].children.length;
+  window.__KIT.particles = field.count;
+  window.__KIT.ready = true;
+  let t = 0;
+  renderer.setAnimationLoop(() => { t += 0.016; field.assemble((Math.sin(t)+1)/2); pivot.rotation.y += 0.01; composer.render(); });
+} catch (e) { window.__KIT.error = String(e); }
+</script></body></html>
