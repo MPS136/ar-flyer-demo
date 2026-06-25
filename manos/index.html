@@ -65,6 +65,7 @@ async function main() {
     addBrandLights(scene);
     // Render directo (lienzo transparente sobre el video de la camara): ligero para movil.
     const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
+    const fitScale = pivot.scale.x; // escala de ajuste interna (no sobreescribir; escalar relativo)
     pivot.visible = false; scene.add(pivot);
 
     const video = document.getElementById("cam");
@@ -94,7 +95,7 @@ async function main() {
       pivot.position.copy(camera.position).add(dir.multiplyScalar(dist));
       const baseScale = THREE.MathUtils.clamp(span * 6.0, 0.4, 2.2);
       const openK = THREE.MathUtils.clamp((open - 1.2) / 0.9, 0.15, 1.0); // puno ~1.2, abierta ~2.1
-      pivot.scale.setScalar(baseScale * openK);
+      pivot.scale.setScalar(fitScale * baseScale * openK); // relativo al ajuste (si no, logo gigante e invisible)
       pivot.visible = true;
     }
 

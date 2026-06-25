@@ -71,8 +71,10 @@ async function main() {
     window.__GEN.ready = true;
 
     const hint = document.getElementById("hint");
-    anchor.onTargetFound = () => { hint.style.display = "block"; };
-    anchor.onTargetLost = () => { hint.style.display = "none"; };
+    // La genesis se dispara al ENCONTRAR la tarjeta (y se repite cada vez que la enfocas),
+    // si no, se reproduce entera mientras el ancla esta oculta y solo se ve el logo final.
+    anchor.onTargetFound = () => { hint.style.display = "none"; restart(); };
+    anchor.onTargetLost = () => { hint.style.display = "block"; };
 
     // Linea de tiempo por reloj (segundos). Beats:
     // 0-1.2 ruptura (explode + anillo) | 1.2-2.8 swirl nube | 2.8-5.2 ensamblado | 5.2-7.5 cierre (solido+respira)
