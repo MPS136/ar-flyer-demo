@@ -33,7 +33,7 @@ try {
   const m0 = await page.evaluate(() => window.__MANOS.morph);
   await page.evaluate(() => window.__MANOS.testMorph(null));
   if (!(m1 > 0.8) || !(m0 < 0.2)) throw new Error("morph forzado no respondio: m1=" + m1 + " m0=" + m0);
-  const crit2 = (await page.evaluate(() => null), errors).filter((e) => !/deprecat|GroupMarker|GL_/i.test(e));
+  const crit2 = errors.filter((e) => !/deprecat|GroupMarker|GL_/i.test(e));
   if (crit2.length) throw new Error("errores tras morph: " + crit2.join(" | "));
   console.log("VERIFY MANOS OK");
 } finally { await browser.close(); srv.kill(); }

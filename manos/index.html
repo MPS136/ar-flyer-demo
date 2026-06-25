@@ -119,7 +119,6 @@ async function main() {
 
     const bloom = makeBloom(renderer, scene, camera, { strength: 0.7, radius: 0.6, threshold: 0 });
     const clock = new THREE.Clock();
-    let reveal = 0; // 0..1: entrada animada del logo al detectar la mano
     let cover = null; // fondo = feed de camara (in-render, robusto); se asigna al arrancar
 
     const video = document.getElementById("cam");
