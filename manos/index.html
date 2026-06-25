@@ -67,11 +67,11 @@ async function main() {
     const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
     pivot.visible = false; scene.add(pivot);
 
-    await loadHands();
-    window.__MANOS.ready = true;
-
     const video = document.getElementById("cam");
     const hint = document.getElementById("hint");
+    // Escena lista ya. El modelo de manos (pesado) NO bloquea: se carga al pulsar
+    // Comenzar, despues de arrancar la camara, para que la camara se vea enseguida.
+    window.__MANOS.ready = true;
 
     // landmarks: 0 muneca, 9 MCP medio, puntas 4/8/12/16/20, MCP 5/9/13/17
     function palmInfo(lm) {
@@ -110,14 +110,21 @@ async function main() {
     }
 
     document.getElementById("start").addEventListener("click", async () => {
+      document.getElementById("start").style.display = "none";
+      // 1) Camara primero: que se vea enseguida (lienzo transparente sobre el video)
       try {
-        document.getElementById("start").style.display = "none";
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
         video.srcObject = stream;
         await video.play();
-        hint.style.display = "block";
-        requestAnimationFrame(frame);
-      } catch (e) { showError("No se pudo acceder a la camara. Revisa permisos y HTTPS."); }
+      } catch (e) { showError("No se pudo acceder a la camara. Revisa permisos y HTTPS."); return; }
+      hint.textContent = "Cargando deteccion de manos...";
+      hint.style.display = "block";
+      requestAnimationFrame(frame); // ya renderiza camara + logo (oculto hasta detectar mano)
+      // 2) Modelo de manos despues (no bloquea la camara)
+      try {
+        await loadHands();
+        hint.textContent = "Muestra la palma abierta";
+      } catch (e) { hint.textContent = "No se pudo cargar la deteccion de manos"; }
     });
   } catch (e) {
     window.__MANOS.error = String(e);

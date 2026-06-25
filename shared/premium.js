@@ -117,11 +117,15 @@ export async function buildLogo(svgUrl, opts = {}) {
       group.add(new THREE.Mesh(geo, mat));
     }
   }
-  group.scale.y *= -1;
-  const box = new THREE.Box3().setFromObject(group);
+  // Centrar ANTES de voltear: el SVG tiene Y hacia abajo. Si se centra despues
+  // de aplicar scale.y=-1, se mezclan espacios y el logo queda descentrado en
+  // vertical (aparece "abajo"). Por eso: medir y centrar sin voltear, y luego
+  // voltear alrededor del origen (ya centrado).
+  let box = new THREE.Box3().setFromObject(group);
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   group.children.forEach((m) => m.position.sub(center));
+  group.scale.y *= -1;
   const fit = scaleToFit / Math.max(size.x, size.y);
   const pivot = new THREE.Group();
   pivot.add(group);
