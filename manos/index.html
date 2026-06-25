@@ -36,7 +36,7 @@
 <script type="module">
 import * as THREE from "three";
 import { HandLandmarker, FilesetResolver } from "tasks-vision";
-import { addBrandLights, makeComposer, buildLogo } from "../shared/premium.js";
+import { addBrandLights, makeComposer, buildLogo, setCameraBackground } from "../shared/premium.js";
 
 window.__MANOS = { ready: false, handLandmarkerLoaded: false, error: null };
 const MIRROR = false; // poner true si se graba con camara frontal en modo espejo
@@ -63,7 +63,9 @@ async function main() {
     const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.01, 100);
     camera.position.set(0, 0, 0); // camara en el origen mirando -z
     addBrandLights(scene);
-    const { composer } = makeComposer(renderer, scene, camera, { strength: 1.2, radius: 0.6 });
+    // threshold alto: el bloom solo realza el logo, no lava la camara de fondo
+    const { composer } = makeComposer(renderer, scene, camera, { strength: 1.2, radius: 0.6, threshold: 0.62 });
+    let cover = null; // fondo = feed de la camara (se asigna al arrancar)
 
     const { pivot } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 1.0 });
     pivot.visible = false; scene.add(pivot);
@@ -106,6 +108,7 @@ async function main() {
         else { pivot.visible = false; hint.style.display="block"; }
       }
       if (pivot.visible) pivot.rotation.y += 0.02;
+      if (cover) cover(window.innerWidth, window.innerHeight);
       composer.render();
       requestAnimationFrame(frame);
     }
@@ -116,6 +119,8 @@ async function main() {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
         video.srcObject = stream;
         await video.play();
+        cover = setCameraBackground(scene, video);
+        cover(window.innerWidth, window.innerHeight);
         hint.style.display = "block";
         requestAnimationFrame(frame);
       } catch (e) { showError("No se pudo acceder a la camara. Revisa permisos y HTTPS."); }

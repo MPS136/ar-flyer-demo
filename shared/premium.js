@@ -28,6 +28,25 @@ export function makeComposer(renderer, scene, camera, opts = {}) {
   return { composer, bloom };
 }
 
+// Pone el feed de la camara como fondo de la escena. Necesario cuando se usa
+// EffectComposer/UnrealBloomPass: el composer pinta un lienzo OPACO, asi que la
+// camara no puede verse "detras" via z-index. Metiendola como scene.background
+// se renderiza dentro del frame (y el bloom solo realza lo brillante si el
+// threshold es alto). Devuelve cover(w,h) para ajustar el encuadre sin deformar.
+export function setCameraBackground(scene, video) {
+  const tex = new THREE.VideoTexture(video);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  scene.background = tex;
+  return function cover(w, h) {
+    tex.needsUpdate = true; // el fondo no dispara el update del VideoTexture: forzarlo cada frame
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh || !w || !h) return;
+    const ca = w / h, va = vw / vh;
+    if (ca > va) { tex.repeat.set(1, va / ca); tex.offset.set(0, (1 - va / ca) / 2); }
+    else { tex.repeat.set(ca / va, 1); tex.offset.set((1 - ca / va) / 2, 0); }
+  };
+}
+
 export async function buildLogo(svgUrl, opts = {}) {
   const { depth = 18, scaleToFit = 1.0 } = opts;
   const text = await (await fetch(svgUrl)).text();
