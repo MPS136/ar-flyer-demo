@@ -73,11 +73,13 @@ async function main() {
     const hint = document.getElementById("hint");
     // La genesis se dispara al ENCONTRAR la tarjeta (y se repite cada vez que la enfocas),
     // si no, se reproduce entera mientras el ancla esta oculta y solo se ve el logo final.
-    anchor.onTargetFound = () => { hint.style.display = "none"; restart(); };
+    anchor.onTargetFound = () => { hint.style.display = "none"; };
     anchor.onTargetLost = () => { hint.style.display = "block"; };
 
-    // Linea de tiempo por reloj (segundos). Beats:
-    // 0-1.2 ruptura (explode + anillo) | 1.2-2.8 swirl nube | 2.8-5.2 ensamblado | 5.2-7.5 cierre (solido+respira)
+    // Linea de tiempo EN BUCLE (segundos) para que la animacion se vea siempre que
+    // enfocas la tarjeta, sin depender de eventos de deteccion. Cada ciclo:
+    // 0-1.2 ruptura | 1.2-2.8 swirl nube | 2.8-5.2 ensamblado | 5.2-9.0 logo formado | repite
+    const CYCLE = 9.0;
     let t0 = null;
     const clock = new THREE.Clock();
     function restart() { t0 = null; pivot.visible = false; pivot.scale.setScalar(fitScale); pivot.rotation.set(0, 0, 0); }
@@ -86,26 +88,30 @@ async function main() {
     function frame() {
       const dt = clock.getDelta();
       if (t0 === null) t0 = 0; else t0 += dt;
-      const t = t0;
+      const t = t0 % CYCLE; // bucle continuo
       if (t < 1.2) {                              // ruptura
+        pivot.visible = false;
+        field.points.material.opacity = 0.95;
         field.explode(t / 1.2);
         const rp = t / 1.2;
         ring.scale.setScalar(0.1 + rp * 6.0);
         ringMat.opacity = 0.6 * (1 - rp);
       } else if (t < 2.8) {                        // swirl
+        pivot.visible = false;
         field.explode(1);
         field.swirl(dt);
         ringMat.opacity = 0;
       } else if (t < 5.2) {                        // ensamblado
+        pivot.visible = false;
         const p = (t - 2.8) / 2.4;
         field.assemble(p);
         field.swirl(dt * (1 - p));
-      } else {                                     // cierre: solido + respira
+      } else {                                     // logo formado (5.2-9.0): respira + vaiven
         field.assemble(1);
         pivot.visible = true;
         pivot.scale.setScalar(fitScale * (1 + 0.04 * Math.sin((t - 5.2) * 3.0))); // respira relativo al ajuste
         pivot.rotation.y = 0.4 * Math.sin((t - 5.2) * 1.2); // vaiven suave: siempre legible, nunca de canto
-        field.points.material.opacity = Math.max(0.25, 0.95 - (t - 5.2) * 0.4);
+        field.points.material.opacity = Math.max(0.3, 0.95 - (t - 5.2) * 0.25);
       }
       renderer.render(scene, camera);
     }
