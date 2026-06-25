@@ -15,7 +15,8 @@
     "compile-genesis": "node tools/compile-genesis-target.mjs",
     "verify-kit": "node tools/verify-kit.mjs",
     "verify-genesis": "node tools/verify-genesis.mjs",
-    "verify-manos": "node tools/verify-manos.mjs"
+    "verify-manos": "node tools/verify-manos.mjs",
+    "verify-brain": "node tools/verify-brain.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0",
