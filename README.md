@@ -37,3 +37,11 @@ npm run serve                         # sirve en http://localhost:8080
   extruye a 3D, lo ancla al marcador y lo hace girar.
 - `assets/targets.mind`: marcador compilado a partir de `flyer/flyer.png`.
 - Alojado en GitHub Pages (estatico).
+
+## Reel AR "GENESIS" (para redes)
+Experiencia de 3 actos para grabar un reel (ruptura, genesis, en tus manos). Dos modulos AR que se
+graban por separado y se unen en edicion. Guia: `docs/superpowers/GUIA-RODAJE-GENESIS.md`.
+- Modulo 1 (ruptura + genesis, sobre marcador): https://mps136.github.io/ar-flyer-demo/genesis/
+- Modulo 2 (en tus manos, seguimiento de mano): https://mps136.github.io/ar-flyer-demo/manos/
+- Kit comun: `shared/premium.js`. Verificadores: `npm run verify-kit | verify-genesis | verify-manos`
+  (usan Chromium no-headless por WebGL).

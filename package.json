@@ -10,7 +10,12 @@
     "qr": "node tools/make-qr.mjs",
     "flyer": "node tools/render-flyer.mjs",
     "compile": "node tools/compile-target.mjs",
-    "verify": "node tools/verify-scene.mjs"
+    "verify": "node tools/verify-scene.mjs",
+    "render-card": "node tools/render-card.mjs",
+    "compile-genesis": "node tools/compile-genesis-target.mjs",
+    "verify-kit": "node tools/verify-kit.mjs",
+    "verify-genesis": "node tools/verify-genesis.mjs",
+    "verify-manos": "node tools/verify-manos.mjs"
   },
   "devDependencies": {
     "playwright": "^1.49.0",
