@@ -281,7 +281,9 @@ cd /Users/malenaps/GitHub_IAcademia/ar-flyer-demo && git add shared/premium.js t
 **Interfaces:**
 - Produces: `marker/card.png` (imagen oscura con detalle para tracking, fuente del marcador del Modulo 1).
 
-- [ ] **Step 1: Escribir `marker/card.html`** (tarjeta oscura, con textura asimetrica y alto detalle para el seguimiento; el logo en pequeno)
+- [ ] **Step 1: Disenar `marker/card.html` PREMIUM con la skill de diseno**
+
+Invoca la skill `high-end-visual-design` (o `design`) y aplica su guia para que la tarjeta tenga acabado de agencia (tipografia con jerarquia, profundidad, sombras suaves, acentos, espaciado). Mantener SIEMPRE: estetica oscura (`#0c1726`/`#16243a`) con acentos azul `#235a97` y dorado `#efa320`; el logo `../flyer/assets/logo.png`; y MUCHO detalle visual no repetitivo y de alto contraste, porque es ADEMAS el marcador AR (nada de grandes zonas planas uniformes ni patrones repetidos que confunden el tracking). Tras renderizar (Step 3), abrir el PNG, juzgar el nivel premium y la trackabilidad, e iterar el HTML hasta que quede de nivel agencia. El siguiente HTML es un PUNTO DE PARTIDA a elevar con la skill, NO el objetivo final:
 
 ```html
 <!doctype html>
