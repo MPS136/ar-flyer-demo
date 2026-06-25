@@ -108,7 +108,7 @@ export async function buildLogo(svgUrl, opts = {}) {
     const fill = rawFill.toLowerCase();
     const color = fill === BRAND.gold.toLowerCase() ? BRAND.gold : BRAND.blue;
     const mat = new THREE.MeshStandardMaterial({
-      color, emissive: new THREE.Color(color), emissiveIntensity: 0.4, metalness: 0.4, roughness: 0.35,
+      color, emissive: new THREE.Color(color), emissiveIntensity: 0.7, metalness: 0.4, roughness: 0.35,
     });
     for (const shape of SVGLoader.createShapes(path)) {
       const geo = new THREE.ExtrudeGeometry(shape, {

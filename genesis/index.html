@@ -34,7 +34,7 @@
 <script type="module">
 import * as THREE from "three";
 import { MindARThree } from "mindar-image-three";
-import { addBrandLights, makeBloom, enableBloom, buildLogo, ParticleField, setCameraBackground } from "../shared/premium.js";
+import { addBrandLights, buildLogo, ParticleField } from "../shared/premium.js";
 
 window.__GEN = { ready: false, particles: 0, error: null };
 const PARTICLE_COUNT = 6000;
@@ -49,10 +49,8 @@ async function main() {
     const { renderer, scene, camera } = mindarThree;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     addBrandLights(scene);
-    // bloom SELECTIVO: solo brilla el logo/particulas (marcados con enableBloom), nunca la camara
-    const { render: renderBloom } = makeBloom(renderer, scene, camera, { strength: 1.2, radius: 0.6, threshold: 0.0 });
-    let cover = null; // se asigna al arrancar la camara (fondo = feed de camara)
-
+    // Render directo (lienzo transparente sobre el video de MindAR): ligero para movil.
+    // El glow cinematografico se anade en la edicion del video, no en tiempo real.
     const anchor = mindarThree.addAnchor(0);
     const { pivot, surfacePoints } = await buildLogo("../assets/iacademia-isotipo.svg", { scaleToFit: 0.6 });
     const field = new ParticleField(surfacePoints(PARTICLE_COUNT), { spread: 1.4, size: 0.012 });
@@ -67,8 +65,6 @@ async function main() {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.08, 48), ringMat);
     ring.position.set(0, 0, 0.05);
     anchor.group.add(ring);
-
-    enableBloom(pivot); enableBloom(field.points); enableBloom(ring); // solo estos brillan
 
     window.__GEN.particles = field.count;
     window.__GEN.ready = true;
@@ -109,8 +105,7 @@ async function main() {
         pivot.rotation.y += dt * 0.5;
         field.points.material.opacity = Math.max(0.25, 0.95 - (t - 5.2) * 0.4);
       }
-      if (cover) cover(window.innerWidth, window.innerHeight);
-      renderBloom();
+      renderer.render(scene, camera);
     }
 
     document.getElementById("start").addEventListener("click", async () => {
@@ -119,8 +114,6 @@ async function main() {
         await mindarThree.start();
         document.documentElement.style.background = "transparent";
         document.body.style.background = "transparent";
-        cover = setCameraBackground(scene, mindarThree.video);
-        cover(window.innerWidth, window.innerHeight);
         renderer.setAnimationLoop(frame);
       } catch (e) { showError("No se pudo acceder a la camara. Revisa permisos y HTTPS."); }
     });
