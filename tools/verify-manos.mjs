@@ -35,5 +35,16 @@ try {
   if (!(m1 > 0.8) || !(m0 < 0.2)) throw new Error("morph forzado no respondio: m1=" + m1 + " m0=" + m0);
   const crit2 = errors.filter((e) => !/deprecat|GroupMarker|GL_/i.test(e));
   if (crit2.length) throw new Error("errores tras morph: " + crit2.join(" | "));
+  // mano sintetica: valida el mapeo apertura->morph (nunca probado con datos reales)
+  // y que la escala del conjunto AR no colapse (regresion del doble fitScale).
+  const mk = (pts) => { const a = Array.from({ length: 21 }, () => ({ x: 0, y: 0 })); for (const k in pts) a[k] = { x: pts[k][0], y: pts[k][1] }; return a; };
+  const OPEN_HAND = mk({ 0: [.50, .90], 5: [.42, .60], 9: [.50, .60], 13: [.58, .60], 17: [.66, .62], 8: [.40, .28], 12: [.50, .24], 16: [.58, .28], 20: [.66, .38] });
+  const FIST_HAND = mk({ 0: [.50, .90], 5: [.42, .62], 9: [.50, .62], 13: [.58, .62], 17: [.66, .64], 8: [.46, .60], 12: [.50, .58], 16: [.55, .60], 20: [.60, .64] });
+  const rOpen = await page.evaluate((h) => window.__MANOS.testHand(h), OPEN_HAND);
+  const rFist = await page.evaluate((h) => window.__MANOS.testHand(h), FIST_HAND);
+  console.log("OPEN:", JSON.stringify(rOpen), "FIST:", JSON.stringify(rFist));
+  if (!(rOpen.morphTarget > 0.8)) throw new Error("mano abierta no mapea a morph alto: " + rOpen.morphTarget);
+  if (!(rFist.morphTarget < 0.2)) throw new Error("puno no mapea a morph bajo: " + rFist.morphTarget);
+  if (!(rOpen.logoWorldSize > 0.1)) throw new Error("escala AR colapsada (logo world size=" + rOpen.logoWorldSize + ")");
   console.log("VERIFY MANOS OK");
 } finally { await browser.close(); srv.kill(); }
