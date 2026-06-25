@@ -44,11 +44,11 @@ iAcademia en 3D (con volumen real) girando** sobre el flyer. Sin app, sin pago, 
   público dedicado, sin secretos, solo el demo.
 
 ## Archivos del proyecto
-- `index.html` — escena AR: target, logo extruido, luces, animación de giro, cartelito "apunta al flyer".
-- `assets/targets.mind` — marcador compilado del flyer.
-- `assets/iacademia-isotipo.svg` — logo vectorizado para extruir.
-- `flyer/flyer.png` + `flyer/qr.png` — flyer imprimible con el QR.
-- `README.md` — cómo imprimir, escanear y probar.
+- `index.html` - escena AR: target, logo extruido, luces, animación de giro, cartelito "apunta al flyer".
+- `assets/targets.mind` - marcador compilado del flyer.
+- `assets/iacademia-isotipo.svg` - logo vectorizado para extruir.
+- `flyer/flyer.png` + `flyer/qr.png` - flyer imprimible con el QR.
+- `README.md` - cómo imprimir, escanear y probar.
 
 ## Cómo se prueba
 - Prueba real: imprimir el flyer y escanear con el móvil.
