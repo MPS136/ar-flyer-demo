@@ -1,0 +1,19 @@
+{
+  "name": "ar-flyer-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Demo WebAR: flyer impreso + QR -> isotipo iAcademia en 3D girando",
+  "scripts": {
+    "serve": "npx --yes serve -l 8080 .",
+    "isotipo": "node tools/make-isotipo-svg.mjs",
+    "qr": "node tools/make-qr.mjs",
+    "flyer": "node tools/render-flyer.mjs",
+    "compile": "node tools/compile-target.mjs",
+    "verify": "node tools/verify-scene.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0",
+    "qrcode": "^1.5.4"
+  }
+}
