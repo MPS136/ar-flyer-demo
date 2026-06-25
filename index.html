@@ -111,6 +111,11 @@ async function main() {
         document.getElementById("start").style.display = "none";
         hint.style.display = "block";
         await mindarThree.start();
+        // MindAR coloca el video de la camara en z-index -2; con fondo opaco
+        // en html/body el video queda tapado. Lo hacemos transparente al
+        // arrancar para que se vea la realidad con el logo encima.
+        document.documentElement.style.background = "transparent";
+        document.body.style.background = "transparent";
         renderer.setAnimationLoop(() => {
           logo.rotation.y += 0.02;
           renderer.render(scene, camera);
